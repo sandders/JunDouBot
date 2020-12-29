@@ -165,8 +165,12 @@ def send_text(message):
         main_handler(message)
 
 if __name__ == '__main__':
-    bot.send_message(399515842, f"server started")
+    try:
+        bot.send_message(399515842, f"server started")
 
-    httpd = HTTPServer((WEBHOOK_LISTEN, WEBHOOK_PORT),
-                   WebhookHandler)
-    httpd.serve_forever()
+        httpd = HTTPServer((WEBHOOK_LISTEN, WEBHOOK_PORT),
+                    WebhookHandler)
+        httpd.serve_forever()
+        bot.send_message(399515842, f"server ended")
+    except Exception:
+        bot.send_message(399515842, f"server ended by exeption")
