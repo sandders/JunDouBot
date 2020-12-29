@@ -56,7 +56,7 @@ def start_message(message):
     global connection
     if collection.count_documents({'_id': message.chat.id}) == 0:
         collection.insert_one({'_id': message.chat.id, 'location':'', 'keywords':''})
-    bot.send_message(message.chat.id, 'Димон Гломозда смотрит гей порно')
+    #bot.send_message(message.chat.id, 'Димон Гломозда смотрит гей порно')
     check_data(message)
     
 
