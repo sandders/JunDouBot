@@ -3,17 +3,63 @@ import requests
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import logging
+import ssl
+import os
+
+API_TOKEN = str(os.environ.get("API_TOKEN"))
+
+WEBHOOK_HOST = 'telegram-jun-bot.herokuapp.com'
+WEBHOOK_PORT = int(os.environ.get("PORT", 5000))  # 443, 80, 88 or 8443 (port need to be 'open')
+WEBHOOK_LISTEN = '0.0.0.0'  # In some VPS you may need to put here the IP addr
+
+WEBHOOK_SSL_CERT = './webhook_cert.pem'  # Path to the ssl certificate
+WEBHOOK_SSL_PRIV = './webhook_pkey.pem'  # Path to the ssl private key
+
+WEBHOOK_URL_BASE = "https://%s:%s" % (WEBHOOK_HOST, WEBHOOK_PORT)
+WEBHOOK_URL_PATH = "/%s/" % (API_TOKEN)
+
+logger = telebot.logger
+telebot.logger.setLevel(logging.INFO)
+
 cluster = MongoClient('mongodb+srv://alexDBUser:mongotelebotpass@cluster0.wvscn.mongodb.net/JunBot_database?retryWrites=true&w=majority')
 db = cluster['JunBot_database']
 collection = db['user_data']
 
-bot = telebot.TeleBot('1488012922:AAGHIPkfhiOr-eWkqJdAlzlRaIW8hEDgp24')
+bot = telebot.TeleBot(API_TOKEN)
 
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 url = 'https://jobs.dou.ua/first-job/'
 
 locations = []
 
+class WebhookHandler(BaseHTTPRequestHandler):
+    server_version = "WebhookHandler/1.0"
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def do_POST(self):
+        if self.path == WEBHOOK_URL_PATH and \
+           'content-type' in self.headers and \
+           'content-length' in self.headers and \
+           self.headers['content-type'] == 'application/json':
+            json_string = self.rfile.read(int(self.headers['content-length']))
+
+            self.send_response(200)
+            self.end_headers()
+
+            update = telebot.types.Update.de_json(json_string)
+            bot.process_new_messages([update.message])
+        else:
+            self.send_error(403)
+            self.end_headers()
 
 def get_locations():
     html = requests.get(url, headers=headers).text
@@ -122,4 +168,14 @@ def send_text(message):
         main_handler(message)
 
 if __name__ == '__main__':
-    bot.polling()
+    bot.send_message(399515842, f"server started")
+
+    httpd = HTTPServer((WEBHOOK_LISTEN, WEBHOOK_PORT),
+                   WebhookHandler)
+
+    httpd.socket = ssl.wrap_socket(httpd.socket,
+                               certfile=WEBHOOK_SSL_CERT,
+                               keyfile=WEBHOOK_SSL_PRIV,
+                               server_side=True)
+
+    httpd.serve_forever()
