@@ -1,22 +1,7 @@
 import telebot
-import requests, os, time
+import requests
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
-
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import logging, flask
-
-API_TOKEN = str(os.environ.get("API_TOKEN"))
-
-WEBHOOK_HOST = 'telegram-jun-bot.herokuapp.com'
-WEBHOOK_PORT = int(os.environ.get("PORT", 5000))  # 443, 80, 88 or 8443 (port need to be 'open')
-WEBHOOK_LISTEN = '0.0.0.0'  # In some VPS you may need to put here the IP addr
-
-WEBHOOK_URL_BASE = "https://%s:%s" % (WEBHOOK_HOST, WEBHOOK_PORT)
-WEBHOOK_URL_PATH = "/%s/" % (API_TOKEN)
-
-logger = telebot.logger
-telebot.logger.setLevel(logging.INFO)
 
 cluster = MongoClient('mongodb+srv://alexDBUser:mongotelebotpass@cluster0.wvscn.mongodb.net/JunBot_database?retryWrites=true&w=majority')
 db = cluster['JunBot_database']
@@ -24,26 +9,10 @@ collection = db['user_data']
 
 bot = telebot.TeleBot(API_TOKEN)
 
-app = flask.Flask(__name__)
-
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 url = 'https://jobs.dou.ua/first-job/'
 
 locations = []
-
-@app.route('/', methods=['GET', 'HEAD'])
-def index():
-    return ''
-
-@app.route(WEBHOOK_URL_PATH, methods=['POST'])
-def webhook():
-    if flask.request.headers.get('content-type') == 'application/json':
-        json_string = flask.request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    else:
-        flask.abort(403)
 
 def get_locations():
     html = requests.get(url, headers=headers).text
@@ -152,9 +121,7 @@ if __name__ == '__main__':
         #bot.remove_webhook()
         #time.sleep(1)
         #bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
-        app.run(host=WEBHOOK_LISTEN,
-                port=WEBHOOK_PORT,
-                debug=True)
+        bot.polling(none_stop=True)
 
         bot.send_message(399515842, f"server ended")
     except Exception as e:
