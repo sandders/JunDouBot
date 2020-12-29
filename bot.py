@@ -169,10 +169,4 @@ if __name__ == '__main__':
 
     httpd = HTTPServer((WEBHOOK_LISTEN, WEBHOOK_PORT),
                    WebhookHandler)
-
-    httpd.socket = ssl.wrap_socket(httpd.socket,
-                               #certfile=WEBHOOK_SSL_CERT,
-                               #keyfile=WEBHOOK_SSL_PRIV,
-                               server_side=True)
-
     httpd.serve_forever()
