@@ -1,7 +1,10 @@
 import telebot
 import requests
+import os
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
+
+API_TOKEN = str(os.environ.get('API_TOKEN'))
 
 cluster = MongoClient('mongodb+srv://alexDBUser:mongotelebotpass@cluster0.wvscn.mongodb.net/JunBot_database?retryWrites=true&w=majority')
 db = cluster['JunBot_database']
@@ -121,7 +124,8 @@ if __name__ == '__main__':
         #bot.remove_webhook()
         #time.sleep(1)
         #bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
-        bot.polling(none_stop=True)
+        #bot.polling(none_stop=True)
+        bot.polling()
 
         bot.send_message(399515842, f"server ended")
     except Exception as e:
