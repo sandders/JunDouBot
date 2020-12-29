@@ -4,9 +4,7 @@ from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import logging
-import ssl
-import os
+import logging, flask
 
 API_TOKEN = str(os.environ.get("API_TOKEN"))
 
@@ -26,37 +24,26 @@ collection = db['user_data']
 
 bot = telebot.TeleBot(API_TOKEN)
 
+app = flask.Flask(__name__)
+
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 url = 'https://jobs.dou.ua/first-job/'
 
 locations = []
 
-class WebhookHandler(BaseHTTPRequestHandler):
-    server_version = "WebhookHandler/1.0"
+@app.route('/', methods=['GET', 'HEAD'])
+def index():
+    return ''
 
-    def do_HEAD(self):
-        self.send_response(200)
-        self.end_headers()
-
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-
-    def do_POST(self):
-        if self.path == WEBHOOK_URL_PATH and \
-           'content-type' in self.headers and \
-           'content-length' in self.headers and \
-           self.headers['content-type'] == 'application/json':
-            json_string = self.rfile.read(int(self.headers['content-length']))
-
-            self.send_response(200)
-            self.end_headers()
-
-            update = telebot.types.Update.de_json(json_string)
-            bot.process_new_messages([update.message])
-        else:
-            self.send_error(403)
-            self.end_headers()
+@app.route(WEBHOOK_URL_PATH, methods=['POST'])
+def webhook():
+    if flask.request.headers.get('content-type') == 'application/json':
+        json_string = flask.request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return ''
+    else:
+        flask.abort(403)
 
 def get_locations():
     html = requests.get(url, headers=headers).text
@@ -143,6 +130,7 @@ def show_vacancies(message):
         bot.send_message(message.chat.id, 'По вашему запросу ваканисий не найдено. Попробуйте изменить параметры поиска.', reply_markup=main_keymap())
     bot.register_next_step_handler(message, main_handler)
 
+@bot.message_handler(content_types=['text'])
 def main_handler(message):
     if message.text.lower() == 'обновить':
         show_vacancies(message)
@@ -157,20 +145,17 @@ def main_handler(message):
 
     
 
-@bot.message_handler(content_types=['text'])
-def send_text(message):
-    if message.text.lower() == 'test':
-        bot.send_message(message.chat.id, f"{user_location}")
-    else:
-        main_handler(message)
-
 if __name__ == '__main__':
     try:
-        bot.send_message(399515842, f"server started")
+        bot.send_message(399515842, f"server started {API_TOKEN}")
 
-        httpd = HTTPServer((WEBHOOK_LISTEN, WEBHOOK_PORT),
-                    WebhookHandler)
-        httpd.serve_forever()
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH))
+        app.run(host=WEBHOOK_LISTEN,
+                port=WEBHOOK_PORT,
+                debug=True)
+
         bot.send_message(399515842, f"server ended")
     except Exception:
         bot.send_message(399515842, f"server ended by exeption")
