@@ -149,9 +149,9 @@ if __name__ == '__main__':
     try:
         bot.send_message(399515842, f"server started {API_TOKEN}")
 
-        bot.remove_webhook()
-        time.sleep(1)
-        bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
+        #bot.remove_webhook()
+        #time.sleep(1)
+        #bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
         app.run(host=WEBHOOK_LISTEN,
                 port=WEBHOOK_PORT,
                 debug=True)
