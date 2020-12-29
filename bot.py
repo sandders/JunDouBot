@@ -1,5 +1,5 @@
 import telebot
-import requests, os
+import requests, os, time
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
