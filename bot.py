@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
 API_TOKEN = str(os.environ.get('API_TOKEN'))
+#API_TOKEN = '1440974657:AAFm1sb3thbXtUq3s8eGgi5i-cX66HsmiKU'
 
 cluster = MongoClient('mongodb+srv://alexDBUser:mongotelebotpass@cluster0.wvscn.mongodb.net/JunBot_database?retryWrites=true&w=majority')
 db = cluster['JunBot_database']
@@ -24,13 +25,16 @@ def get_locations():
     all_locations = div_locations.find_all('a')
     return [location.text for location in all_locations]
 
-def find_vacancies(location, keyword):
+def find_vacancies(location, keywords):
     html = requests.get(url, headers=headers).text
     soup = BeautifulSoup(html, 'lxml')
     all_vacancies = soup.find_all('div', {'class': 'vacancy'})
-    kiev_vac = [vac for vac in all_vacancies if f'{location}' in vac.text and f'{keyword}' in vac.find('a', {'class': 'vt'}).text]
+    loc_filtered_vac = [vac for vac in all_vacancies if f'{location}' in vac.text] if not location.lower() == "все" else all_vacancies
+    keyword_filtered_vac = [vac for vac in loc_filtered_vac if any([kwrg in vac.find('a', {'class': 'vt'}).text.lower() for kwrg in keywords])]
+    if 'java' in keywords:
+        keyword_filtered_vac = [vac for vac in keyword_filtered_vac if not any([kwrg in vac.find('a', {'class': 'vt'}).text.lower() for kwrg in ['java script', 'javascript']])]
     return [{'title': vac.find('a', {'class': 'vt'}).text,
-             'link': vac.find('a', {'class': 'vt'}, href=True)['href']} for vac in kiev_vac]
+             'link': vac.find('a', {'class': 'vt'}, href=True)['href']} for vac in keyword_filtered_vac]
 def main_keymap():
     keyboard = telebot.types.ReplyKeyboardMarkup()
     keyboard.row('Обновить')
@@ -49,11 +53,9 @@ def location_keymap():
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
-
-    print('new start')
     global connection
     if collection.count_documents({'_id': message.chat.id}) == 0:
-        collection.insert_one({'_id': message.chat.id, 'location':'', 'keyword':''})
+        collection.insert_one({'_id': message.chat.id, 'location':'', 'keywords':''})
     bot.send_message(message.chat.id, 'Димон Гломозда смотрит гей порно')
     check_data(message)
     
@@ -64,8 +66,8 @@ def check_data(message):
         bot.send_message(message.chat.id, 'Введите город:', reply_markup=location_keymap())
         bot.register_next_step_handler(message, change_location)
         return
-    if user_data['keyword']=='':
-        bot.send_message(message.chat.id, 'Введите ключевое слово для поиска:', reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
+    if user_data['keywords']==[]:
+        bot.send_message(message.chat.id, 'Введите ключевое слово для поиска (можно несколько, для разделения используйте запятую):', reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
         bot.register_next_step_handler(message, select_keyword)
         return
     show_vacancies(message)
@@ -74,7 +76,6 @@ def check_data(message):
 def change_location(message):
     global collection, locations
     new_locatoin = message.text
-    print(new_locatoin)
     if new_locatoin in locations:
         collection.update_one({'_id':message.chat.id}, {'$set':{'location':new_locatoin}})
         check_data(message)
@@ -84,22 +85,23 @@ def change_location(message):
         bot.register_next_step_handler(message, change_location)
 
 def select_keyword(message):
-    new_keyword = message.text
-    print(new_keyword)
     global collection
-    collection.update_one({'_id':message.chat.id}, {'$set':{'keyword':new_keyword}})
+    new_keyword = message.text
+    new_keywords = new_keyword.split(',')
+    new_keywords = [word.strip().lower() for word in new_keywords]
+    collection.update_one({'_id':message.chat.id}, {'$set':{'keywords':new_keywords}})
     check_data(message)
 
 def show_vacancies(message):
     global collection
     user_data = collection.find_one({'_id':message.chat.id})
-    if not len(vacancies:=find_vacancies(user_data['location'], user_data['keyword'])) == 0:
+    if not len(vacancies:=find_vacancies(user_data['location'], user_data['keywords'])) == 0:
         bot.send_message(message.chat.id, 'Вот список вакансий:', reply_markup=main_keymap())
         for a in vacancies:
             bot.send_message(message.chat.id, f"{a['title']} {a['link']}")
         bot.send_message(message.chat.id, f'Всего найдено вакансий: {len(vacancies)}', reply_markup=main_keymap())
     else:
-        bot.send_message(message.chat.id, 'По вашему запросу ваканисий не найдено. Попробуйте изменить параметры поиска.', reply_markup=main_keymap())
+        bot.send_message(message.chat.id, f'По вашему запросу "{user_data["location"].title()} {", ".join(i.title() for i in user_data["keywords"])}" ваканисий не найдено. Попробуйте изменить параметры поиска.', reply_markup=main_keymap())
     bot.register_next_step_handler(message, main_handler)
 
 @bot.message_handler(content_types=['text'])
@@ -110,7 +112,7 @@ def main_handler(message):
         bot.send_message(message.chat.id, 'Введите город:', reply_markup=location_keymap())
         bot.register_next_step_handler(message, change_location)
     elif message.text.lower() == 'изменить ключевое слово':
-        bot.send_message(message.chat.id, 'Введите ключевое слово для поиска:', reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
+        bot.send_message(message.chat.id, 'Введите ключевое слово для поиска (можно несколько, для разделения используйте запятую):', reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
         bot.register_next_step_handler(message, select_keyword)
     else:
         check_data(message)
@@ -118,15 +120,4 @@ def main_handler(message):
     
 
 if __name__ == '__main__':
-    try:
-        bot.send_message(399515842, f"server started {API_TOKEN}")
-
-        #bot.remove_webhook()
-        #time.sleep(1)
-        #bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
-        #bot.polling(none_stop=True)
-        bot.polling()
-
-        bot.send_message(399515842, f"server ended")
-    except Exception as e:
-        bot.send_message(399515842, f"server ended by exeption {e}")
+    bot.polling(none_stop=True)
