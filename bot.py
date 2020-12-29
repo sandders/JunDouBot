@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
         bot.remove_webhook()
         time.sleep(1)
-        bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH))
+        bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
         app.run(host=WEBHOOK_LISTEN,
                 port=WEBHOOK_PORT,
                 debug=True)
