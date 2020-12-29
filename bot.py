@@ -157,5 +157,5 @@ if __name__ == '__main__':
                 debug=True)
 
         bot.send_message(399515842, f"server ended")
-    except Exception:
-        bot.send_message(399515842, f"server ended by exeption")
+    except Exception as e:
+        bot.send_message(399515842, f"server ended by exeption {e}")
