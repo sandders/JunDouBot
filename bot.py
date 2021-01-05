@@ -5,9 +5,8 @@ from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
 API_TOKEN = str(os.environ.get('API_TOKEN'))
-#API_TOKEN = '1440974657:AAFm1sb3thbXtUq3s8eGgi5i-cX66HsmiKU'
 
-cluster = MongoClient('mongodb+srv://alexDBUser:mongotelebotpass@cluster0.wvscn.mongodb.net/JunBot_database?retryWrites=true&w=majority')
+cluster = MongoClient(str(os.environ.get('MONGO_CLIENT')))
 db = cluster['JunBot_database']
 collection = db['user_data']
 
